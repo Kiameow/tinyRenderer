@@ -1,5 +1,6 @@
 #include "tgaimage.h"
 #include "model.h"
+#include "zbuffer.h"
 #include <iostream>
 
 #define IMAGE_WIDTH 100
@@ -62,63 +63,49 @@ float getLineSteep(Vec2f v0, Vec2f v1) {
     return (v1.y - v0.y) / float(v1.x - v0.x);
 }
 
-void triangle(Vec2f v0, Vec2f v1, Vec2f v2, TGAImage &image, TGAColor color) {
-    line(v0.x, v0.y, v1.x, v1.y, image, color);
-    line(v0.x, v0.y, v2.x, v2.y, image, color);
-    line(v2.x, v2.y, v1.x, v1.y, image, color);
+Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
+    Vec3f _A = Vec3f(A.x, A.y, 0);
+    Vec3f _B = Vec3f(B.x, B.y, 0);
+    Vec3f _C = Vec3f(C.x, C.y, 0);
+    Vec3f _P = Vec3f(P.x, P.y, 0);
+    Vec3f AB = _B - _A;
+    Vec3f AC = _C - _A;
+    float area_sum = (AB ^ AC).norm();
+    Vec3f AP = _P - _A;
+    float u = (AP ^ AB).norm() / area_sum; // c
+    float v = (AP ^ AC).norm() / area_sum; // b
 
-    // sort vertecies by the y coordinates
-    if (v0.y > v1.y) std::swap(v0, v1);
-    if (v1.y > v2.y) std::swap(v1, v2);
-    if (v0.y > v1.y) std::swap(v0, v1);
-
-    float k1 = getLineSteep(v0, v1);
-    float k2 = getLineSteep(v0, v2);
-
-    for (int y = v0.y; y <= v1.y; y++) {
-        int x1 = v0.x + (y - v0.y) / k1;
-        int x2 = v0.x + (y - v0.y) / k2;
-        line(x1, y, x2, y, image, color);
-    }
-
-    float k3 = getLineSteep(v1, v2);
-
-    for (int y = v2.y; y >= v1.y; y--) {
-        int x2 = v2.x + (y - v2.y) / k2;
-        int x3 = v2.x + (y - v2.y) / k3;
-        line(x2, y, x3, y, image, color);
-    }
+    if (u < 0 || v < 0 || 1 - (u + v) < 0) return Vec3f(-1, 0, 0);
+    return Vec3f(1-(u+v), v, u);
 }
 
-Vec3f barycentric(Vec2i *pts, Vec2i P) {
-    Vec3i bary = Vec3i(pts[1].x - pts[0].x, pts[2].x - pts[0].x, pts[0].x - P.x) ^ Vec3i(pts[1].y - pts[0].y, pts[2].y - pts[0].y, pts[0].y - P.y);
-
-    // z == 0 means the triangle is degenerated
-    if (std::abs(bary.z) == 0) return Vec3f(-1.0, 0.0, 0.0);
-    
-    float fz = float(bary.z);
-    return Vec3f(1.f - (bary.x + bary.y) / fz, bary.x / fz, bary.y / fz);
-}
-
-void triangle(Vec2i *pts, TGAImage &image, TGAColor color) {
-    Vec2i bboxmin(image.get_width() - 1, image.get_height() - 1);
-    Vec2i bboxmax(0, 0);
-    Vec2i clamp(image.get_width() - 1, image.get_height() - 1);
+void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
+    Vec2f bboxmin(image.get_width() - 1, image.get_height() - 1);
+    Vec2f bboxmax(0, 0);
+    Vec2f clamp(image.get_width() - 1, image.get_height() - 1);
 
     for (int i = 0; i < 3; i++)
     {
-        bboxmin.x = std::max(0, std::min(bboxmin.x, pts[i].x));
-        bboxmin.y = std::max(0, std::min(bboxmin.y, pts[i].y));
-
-        bboxmax.x = std::min(std::max(bboxmax.x, pts[i].x), clamp.x);
-        bboxmax.y = std::min(std::max(bboxmax.y, pts[i].y), clamp.y);
+        for (int j = 0; j < 2; j++) {
+            bboxmin[j] = std::max(0.f, std::min(bboxmin[j], pts[i][j]));
+            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
+        }
     }
     
     for (int y = bboxmin.y; y <= bboxmax.y; y++) {
         for (int x = bboxmin.x; x <= bboxmax.x; x++) {
-            Vec3f bary = barycentric(pts, Vec2i(x, y));
-            if (bary.x < 0 || bary.y < 0 || bary.z < 0) continue;
-            image.set(x, y, color);
+            float z = - std::numeric_limits<float>::max();
+        
+            Vec3f bary_coord = barycentric(pts[0], pts[1], pts[2], Vec3f(x, y, 0));
+
+            if (bary_coord.x < 0 || bary_coord.y < 0 || bary_coord.z < 0) continue;
+            
+            z = bary_coord * Vec3f(pts[0].z, pts[1].z, pts[2].z);
+
+            if (zbuffer[y * image.get_width() + x] < z) {
+                zbuffer[y * image.get_width() + x] = z;
+                image.set(x, y, color);
+            }
         }
     }
 }
@@ -143,21 +130,38 @@ int main(int argc, char* argv[]) {
 
     #ifdef MODEL_TEST
     image.clear();
+    // Vec3f light = Vec3f(100, 100, 0);
+    Vec3f light_dir(0, 0, -1);
+    light_dir.normalize();
     int width = LARGE_IMAGE_WIDTH;   
     int height = LARGE_IMAGE_WIDTH;   
     image.scale(width, height);
     Model *model = new Model("./objs/afraican_head.obj");
+    float *z_buffer = new float[height * width];
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            z_buffer[i * width + j] = - std::numeric_limits<float>::max();
+        }
+    }
+
     for (int i=0; i<model->nfaces(); i++) { 
         std::vector<int> face = model->face(i); 
-        Vec2i screen_coords[3]; 
+        Vec3f world_coords[3];
         for (int j=0; j<3; j++) { 
-            Vec3f world_coords = model->vert(face[j]); 
-            screen_coords[j] = Vec2i((world_coords.x+1.)*width/2., (world_coords.y+1.)*height/2.); 
+            Vec3f v = model->vert(face[j]); 
+            world_coords[j] = Vec3f((v.x + 1) * width / 2, (v.y + 1) * height / 2, v.z * 100);
         } 
-        triangle(screen_coords, image, TGAColor(rand()%255, rand()%255, rand()%255, 255)); 
+        // question: normal_face direction can be various, let's just ignore that for now
+        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
+        n.normalize();
+        float intensity = light_dir * n;
+
+        if (intensity > 0) {
+            triangle(world_coords, z_buffer, image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255)); 
+        }
     }
     image.flip_vertically();
-    image.write_tga_file("./images/colorful_head_model.tga");
+    image.write_tga_file("./images/shadow_head_model_fixed.tga");
     #endif    
     
     return 0;
