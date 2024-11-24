@@ -1,5 +1,6 @@
 #include "tgaimage.h"
 #include "model.h"
+#include "triangle.h"
 #include "zbuffer.h"
 #include <iostream>
 
@@ -65,53 +66,6 @@ float getLineSteep(Vec2f v0, Vec2f v1) {
     return (v1.y - v0.y) / float(v1.x - v0.x);
 }
 
-Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
-    Vec3f c1 = Vec3f(B.x - A.x, C.x - A.x, A.x - P.x);
-    Vec3f c2 = Vec3f(B.y - A.y, C.y - A.y, A.y - P.y);
-
-    Vec3f u = c1 ^ c2;
-    if (std::abs(u.z) < EPSILON) {
-        // invalid output
-        return Vec3f(-1, 0, 0);
-    }
-    Vec3f un = Vec3f(u.x / u.z, u.y / u.z, 1);
-    if (un.x < 0 || un.y < 0 || un.x + un.y > 1)  return Vec3f(-1, 0, 0);
-    return Vec3f(1 - (un.x + un.y), un.x, un.y);
-}
-
-void triangle(Vec3f *pts, ZBuffer& zbuffer, TGAImage &image, TGAColor color) {
-    Vec2f bboxmin(image.get_width() - 1, image.get_height() - 1);
-    Vec2f bboxmax(0, 0);
-    Vec2f clamp(image.get_width() - 1, image.get_height() - 1);
-
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 2; j++) {
-            bboxmin[j] = std::max(0.f, std::min(bboxmin[j], pts[i][j]));
-            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
-        }
-    }
-    
-    for (int y = bboxmin.y; y <= bboxmax.y; y++) {
-        for (int x = bboxmin.x; x <= bboxmax.x; x++) {
-            float z = - std::numeric_limits<float>::max();
-        
-            Vec3f bary_coord = barycentric(pts[0], pts[1], pts[2], Vec3f(x, y, 0));
-            if (x == 79 && y == 20) {
-                std::cout << bary_coord << std::endl;
-            }
-            if (bary_coord.x < 0 || bary_coord.y < 0 || bary_coord.z < 0) continue;
-            
-            z = bary_coord * Vec3f(pts[0].z, pts[1].z, pts[2].z);
-
-            if (zbuffer.get(x, y) < z) {
-                zbuffer.set(x, y, z);
-                image.set(x, y, color);
-            }
-        }
-    }
-}
-
 int main(int argc, char* argv[]) {
     #ifdef LINE_TEST
     image.clear();
@@ -140,26 +94,45 @@ int main(int argc, char* argv[]) {
     int height = LARGE_IMAGE_WIDTH;   
     image.scale(width, height);
     Model *model = new Model("./objs/afraican_head.obj");
+    TGAImage texture;
+    texture.read_tga_file("./texture/african_head_diffuse.tga");
     ZBuffer zbuffer(width, height);
 
     for (int i=0; i<model->nfaces(); i++) { 
-        std::vector<int> face = model->face(i); 
+        std::vector<Vertex> face = model->face(i); 
         Vec3f world_coords[3];
+        Vec3f text_coords[3];
+        TGAColor colors[3];
         for (int j=0; j<3; j++) { 
-            Vec3f v = model->vert(face[j]); 
+            Vec3f v = model->vert(face[j].vertex_idx); 
+            Vec3f vt = model->text(face[j].texture_idx);
             world_coords[j] = Vec3f((v.x + 1) * width / 2, (v.y + 1) * height / 2, v.z * 500);
+            int texture_x = static_cast<int>(vt.x * texture.get_width());
+            int texture_y = texture.get_height() - 1 - static_cast<int>(vt.y * texture.get_height());
+            text_coords[j].x = texture_x;
+            text_coords[j].y = texture_y;
+            colors[j] = texture.get(texture_x, texture_y);
         } 
         // question: normal_face direction can be various, let's just ignore that for now
         Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
         n.normalize();
         float intensity = light_dir * n;
 
-        if (intensity > 0) {
-            triangle(world_coords, zbuffer, image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255)); 
+        if (intensity <= 0) continue;
+
+        for (int j=0; j<3; j++) {
+            colors[j] = TGAColor(
+                colors[j].r * intensity,
+                colors[j].g * intensity,
+                colors[j].b * intensity,
+                255
+            );
         }
+        //triangle(world_coords, zbuffer, image, colors); 
+        triangle(world_coords, zbuffer, image, text_coords, texture, intensity);
     }
     image.flip_vertically();
-    image.write_tga_file("./images/shadow_head_model_fixed_v2.tga");
+    image.write_tga_file("./images/text_head_model.tga");
     #endif    
     
     return 0;
