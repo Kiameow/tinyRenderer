@@ -89,6 +89,17 @@ int main(int argc, char* argv[]) {
     image.clear();
     // Vec3f light = Vec3f(100, 100, 0);
     Vec3f light_dir(0, 0, -1);
+    Vec3f camera_pos(0, 0, -10);
+    Vec3f persp(0, 0, 0);
+    if (std::abs(camera_pos.x) <= EPSILON) persp.x = 0;
+    else persp.x = -1 / camera_pos.x;
+    if (std::abs(camera_pos.y) <= EPSILON) persp.y = 0;
+    else persp.y = -1 / camera_pos.y;
+    if (std::abs(camera_pos.z) <= EPSILON) persp.z = 0;
+    else persp.z = -1 / camera_pos.z;
+
+    std::cout << persp << std::endl;
+
     light_dir.normalize();
     int width = LARGE_IMAGE_WIDTH;   
     int height = LARGE_IMAGE_WIDTH;   
@@ -106,7 +117,7 @@ int main(int argc, char* argv[]) {
         for (int j=0; j<3; j++) { 
             Vec3f v = model->vert(face[j].vertex_idx); 
             Vec3f vt = model->text(face[j].texture_idx);
-            world_coords[j] = Vec3f((v.x + 1) * width / 2, (v.y + 1) * height / 2, v.z * 500);
+            world_coords[j] = Vec3f((v.x + 1) * width / 2, (v.y + 1) * height / 2, v.z);
             int texture_x = static_cast<int>(vt.x * texture.get_width());
             int texture_y = texture.get_height() - 1 - static_cast<int>(vt.y * texture.get_height());
             text_coords[j].x = texture_x;
@@ -129,10 +140,10 @@ int main(int argc, char* argv[]) {
             );
         }
         //triangle(world_coords, zbuffer, image, colors); 
-        triangle(world_coords, zbuffer, image, text_coords, texture, intensity);
+        triangle(world_coords, zbuffer, image, text_coords, texture, intensity, persp);
     }
     image.flip_vertically();
-    image.write_tga_file("./images/text_head_model.tga");
+    image.write_tga_file("./images/persp_head_model.tga");
     #endif    
     
     return 0;

@@ -1,4 +1,5 @@
 #include "triangle.h"
+#include <iostream>
 
 Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
     Vec3f c1 = Vec3f(B.x - A.x, C.x - A.x, A.x - P.x);
@@ -50,7 +51,7 @@ void triangle(Vec3f *pts, ZBuffer& zbuffer, TGAImage &image, TGAColor* colors) {
     }
 }
 
-void triangle(Vec3f *pts, ZBuffer& zbuffer, TGAImage &image, Vec3f *texts, TGAImage &texture, float intensity) {
+void triangle(Vec3f *pts, ZBuffer& zbuffer, TGAImage &image, Vec3f *texts, TGAImage &texture, float intensity, Vec3f persp) {
     Vec2f bboxmin(image.get_width() - 1, image.get_height() - 1);
     Vec2f bboxmax(0, 0);
     Vec2f clamp(image.get_width() - 1, image.get_height() - 1);
@@ -65,12 +66,30 @@ void triangle(Vec3f *pts, ZBuffer& zbuffer, TGAImage &image, Vec3f *texts, TGAIm
     
     for (int y = bboxmin.y; y <= bboxmax.y; y++) {
         for (int x = bboxmin.x; x <= bboxmax.x; x++) {
+            int vx = x;
+            int vy = y;
             float z = - std::numeric_limits<float>::max();
         
             Vec3f bary_coord = barycentric(pts[0], pts[1], pts[2], Vec3f(x, y, 0));
             if (bary_coord.x < 0 || bary_coord.y < 0 || bary_coord.z < 0) continue;
             
             z = bary_coord * Vec3f(pts[0].z, pts[1].z, pts[2].z);
+
+            float homo_coef = persp * Vec3f(vx, vy, z) + 1;
+            float inver_homo_coef = 0.f;
+            if (homo_coef <= EPSILON) {
+                continue;
+            } else {
+                inver_homo_coef = 1.f / homo_coef;
+            }
+            
+
+            vx *= inver_homo_coef;
+            if (vx >= clamp.y || vx < 0) continue;
+            vy *= inver_homo_coef;
+            if (vy >= clamp.x || vy < 0) continue;
+            z *= inver_homo_coef;
+
             Vec3f text_coord = Vec3f(0, 0, 0);
             for (int i=0; i<3; i++) {
                 text_coord = text_coord + texts[i] * bary_coord[i];
@@ -79,9 +98,9 @@ void triangle(Vec3f *pts, ZBuffer& zbuffer, TGAImage &image, Vec3f *texts, TGAIm
             // int v = texture->get_height() - 1 - static_cast<int>(text_coord.y * texture->get_height());
             TGAColor c = texture.get(text_coord.x, text_coord.y);
 
-            if (zbuffer.get(x, y) < z) {
-                zbuffer.set(x, y, z);
-                image.set(x, y, c);
+            if (zbuffer.get(vx, vy) < z) {
+                zbuffer.set(vx, vy, z);
+                image.set(vx, vy, c);
             }
         }
     }
