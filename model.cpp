@@ -4,11 +4,15 @@
 #include <sstream>
 #include <vector>
 #include "model.h"
+#include "tgaimage.h"
 
-Model::Model(const char *filename) : verts_(), texts_(), faces_() {
+Model::Model(const char *obj_filename, const char *texture_filename) : verts_(), texts_(), faces_() {
     std::ifstream in;
-    in.open (filename, std::ifstream::in);
-    if (in.fail()) return;
+    in.open (obj_filename, std::ifstream::in);
+    if (in.fail()) {
+        std::cerr << "Open " << obj_filename << " failed!" << std::endl;
+        return;
+    }
     std::string line;
     while (!in.eof()) {
         std::getline(in, line);
@@ -38,9 +42,16 @@ Model::Model(const char *filename) : verts_(), texts_(), faces_() {
         }
     }
     std::cerr << "# v# " << verts_.size() << " f# "  << faces_.size() << std::endl;
+    load_texture(texture_filename);
 }
 
 Model::~Model() {
+}
+
+void Model::load_texture(const char *filename) {
+    std::string texfile(filename);
+    std::cerr << "texture file " << texfile << " loading " << (texture_.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
+    texture_.flip_vertically();
 }
 
 int Model::nverts() {
@@ -63,6 +74,7 @@ Vec3f Model::vert(int i) {
     return verts_[i];
 }
 
-Vec3f Model::text(int i) {
-    return texts_[i];
+Vec2i Model::uv(int texture_idx) {
+    Vec2f vert_text = texts_[texture_idx];
+    return Vec2i(vert_text.x * texture_.get_width(), vert_text.y * texture_.get_height());
 }

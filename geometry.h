@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <ostream>
+#include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template <class t> struct Vec2;
@@ -80,5 +81,28 @@ template <class t> std::ostream& operator<<(std::ostream& s, Vec3<t>& v) {
 	s << "(" << v.x << ", " << v.y << ", " << v.z << ")\n";
 	return s;
 }
+
+const size_t DEFAULT_ALLOC = 4;
+
+template <class t>
+class Matrix {
+private: 
+	int rows, cols;
+	std::vector<std::vector<t>> m; 
+public:
+	Matrix(size_t r = DEFAULT_ALLOC, size_t c = DEFAULT_ALLOC);
+
+	inline size_t nrows() { return rows; }
+	inline size_t ncols() { return cols; }
+
+	Matrix identity(size_t dimensions);
+	std::vector<t>& operator[](const int i);
+	Matrix operator*(const Matrix& a);
+    Matrix transpose();
+    Matrix inverse();
+
+    template <typename U>
+    friend std::ostream& operator<<(std::ostream& s, const Matrix<U>& m);
+};
 
 #endif //__GEOMETRY_H__
