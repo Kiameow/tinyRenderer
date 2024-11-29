@@ -95,9 +95,10 @@ public:
 	inline size_t nrows() { return rows; }
 	inline size_t ncols() { return cols; }
 
-	Matrix identity(size_t dimensions);
+	static Matrix<t> identity(size_t dimensions);
 	std::vector<t>& operator[](const int i);
-	Matrix operator*(const Matrix& a);
+
+	Matrix<t> operator*(const Matrix<t>& a);
     Matrix transpose();
     Matrix inverse();
 

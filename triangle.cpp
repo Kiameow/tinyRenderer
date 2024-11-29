@@ -44,8 +44,6 @@ void triangle(Vec3f *pts, Vec2i *texts, float intensity, ZBuffer &zbuffer, TGAIm
                 v += texts[i].v * bary_coord[i];
             }
 
-            std::cout << u << " " << v << std::endl;
-
             TGAColor c = model->diffuse(u, v);
             // std::cout << ":" << std::endl;
             // std::cout << c.r << c.g << std::endl;

@@ -7,11 +7,11 @@
 template <class t>
 Matrix<t>::Matrix(size_t r, size_t c) : m(std::vector<std::vector<t>>(r, std::vector<t>(c, 0))), rows(r), cols(c) { }
 
-template <class t>
-Matrix<t> Matrix<t>::identity(size_t dimensions) {
+template <>
+Matrix<float> Matrix<float>::identity(size_t dimensions) {
     Matrix E(dimensions, dimensions);
-    for (int i=0; i<dimensions; i++) {
-        for (int j=0; j<dimensions; j++) {
+    for (size_t i=0; i<dimensions; i++) {
+        for (size_t j=0; j<dimensions; j++) {
             E[i][j] = (i==j ? 1.f : 0.f);
         }
     }
@@ -101,3 +101,5 @@ std::ostream& operator<<(std::ostream& s, Matrix<t>& m) {
     }
     return s;
 }
+
+template class Matrix<float>;
