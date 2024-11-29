@@ -2,6 +2,7 @@
 #define __IMAGE_H__
 
 #include <fstream>
+#include <stdexcept>
 
 #pragma pack(push,1)
 struct TGA_Header {
@@ -56,6 +57,20 @@ struct TGAColor {
 			val = c.val;
 		}
 		return *this;
+	}
+
+	TGAColor operator *(float intensity) {
+		if (intensity < 0) 
+			throw std::underflow_error("TGAColor cannot be negative");
+
+		TGAColor c(
+			std::min(static_cast<int>(this->r * intensity), 255), 
+			std::min(static_cast<int>(this->g * intensity), 255), 
+			std::min(static_cast<int>(this->b * intensity), 255), 
+			this->a
+		);
+
+		return c;
 	}
 };
 

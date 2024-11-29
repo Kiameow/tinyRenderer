@@ -29,6 +29,7 @@ public:
 	int nfaces();
 	Vec3f vert(int i);
 	std::vector<Vertex> face(int idx);
+	Vec3f normal(int i);
 	Vec2i uv(int texture_idx);
 	inline TGAColor diffuse(int u, int v) {	return texture_.get(u, v); }
 };

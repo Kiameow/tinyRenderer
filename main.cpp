@@ -77,9 +77,8 @@ int main(int argc, char* argv[]) {
     #ifdef MODEL_TEST
     image.clear();
     
-    Vec3f light_dir(0, 0, -1);
     light_dir.normalize();
-    Vec3f camera(0, 0, 3);
+    
     int width = LARGE_IMAGE_WIDTH;   
     int height = LARGE_IMAGE_WIDTH;  
     int depth = DEPTH; 
@@ -97,20 +96,16 @@ int main(int argc, char* argv[]) {
         std::vector<Vertex> face = model->face(i); 
         Vec3f world_coords[3];
         Vec2i text_coords[3];
-        TGAColor colors[3];
+        Vec3f normals[3];
+    
         for (int j=0; j<3; j++) { 
-            Vec3f v  = model->vert(face[j].vertex_idx); 
+            Vec3f v = model->vert(face[j].vertex_idx); 
             world_coords[j] = m2v(ViewPort * Projection * v2m(v));
             text_coords[j] = model->uv(face[j].texture_idx);
+            normals[j] = model->normal(face[j].normal_idx);
         } 
         // question: normal_face direction can be various, let's just ignore that for now
-        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
-        n.normalize();
-        float intensity = light_dir * n;
-
-        if (intensity <= 0) continue;
-        //triangle(world_coords, zbuffer, image, colors); 
-        triangle(world_coords, text_coords, intensity, zbuffer, image);
+        triangle(world_coords, text_coords, normals, zbuffer, image);
     }
     image.flip_vertically();
     image.write_tga_file((images_folder + output_filename).c_str());

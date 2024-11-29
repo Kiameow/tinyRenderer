@@ -16,7 +16,7 @@ Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
     return Vec3f(1 - (un.x + un.y), un.x, un.y);
 }
 
-void triangle(Vec3f *pts, Vec2i *texts, float intensity, ZBuffer &zbuffer, TGAImage &image) {
+void triangle(Vec3f *pts, Vec2i *texts, Vec3f *normals, ZBuffer &zbuffer, TGAImage &image) {
     Vec2f bboxmin(image.get_width() - 1, image.get_height() - 1);
     Vec2f bboxmax(0, 0);
     Vec2f clamp(image.get_width() - 1, image.get_height() - 1);
@@ -35,8 +35,18 @@ void triangle(Vec3f *pts, Vec2i *texts, float intensity, ZBuffer &zbuffer, TGAIm
         
             Vec3f bary_coord = barycentric(pts[0], pts[1], pts[2], Vec3f(x, y, 0));
             if (bary_coord.x < 0 || bary_coord.y < 0 || bary_coord.z < 0) continue;
+
+            Vec3f normal(0, 0, 0);
+            for (int i = 0; i < 3; i++) {
+                normal = normal + normals[i] * bary_coord[i];
+            }
+            normal.normalize();
+
+            float intensity = normal * light_dir;
+            if (intensity <= 0) continue;
             
             z = bary_coord * Vec3f(pts[0].z, pts[1].z, pts[2].z);
+            if (zbuffer.get(x, y) > z) continue;
 
             float u = 0, v = 0;
             for (int i = 0; i < 3; i++) {
@@ -44,19 +54,10 @@ void triangle(Vec3f *pts, Vec2i *texts, float intensity, ZBuffer &zbuffer, TGAIm
                 v += texts[i].v * bary_coord[i];
             }
 
-            TGAColor c = model->diffuse(u, v);
-            // std::cout << ":" << std::endl;
-            // std::cout << c.r << c.g << std::endl;
-            for (int i = 0; i < 3; i++) {
-                c.r *= intensity;
-                c.g *= intensity;
-                c.b *= intensity;
-            }
-
-            if (zbuffer.get(x, y) < z) {
-                zbuffer.set(x, y, z);
-                image.set(x, y, c);
-            }
+            TGAColor c = model->diffuse(u, v) * intensity;
+        
+            zbuffer.set(x, y, z);
+            image.set(x, y, c);
         }
     }
 }

@@ -202,6 +202,7 @@ bool TGAImage::write_tga_file(const char *filename, bool rle) {
 		return false;
 	}
 	out.close();
+	std::cout << "generate " << std::string(filename) << "\n";
 	return true;
 }
 
