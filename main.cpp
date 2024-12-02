@@ -27,8 +27,8 @@ TGAColor blue(0, 0, 255, 255);
 TGAColor white(255, 255, 255, 255);
 TGAImage image(IMAGE_WIDTH, IMAGE_HEIGHT, TGAImage::RGB);
 
-Matrix<float> viewport(int x, int y, int width, int height, int depth) {
-    Matrix<float> M = Matrix<float>::identity(4);
+Matrix viewport(int x, int y, int width, int height, int depth) {
+    Matrix M = Matrix::identity();
     M[0][0] = width  / 2.f;
     M[1][1] = height / 2.f;
     M[2][2] = depth  / 2.f;
@@ -39,20 +39,6 @@ Matrix<float> viewport(int x, int y, int width, int height, int depth) {
 
     return M;
 }
-
-Matrix<float> v2m(Vec3f v) {
-    Matrix<float> m = Matrix<float>(4, 1);
-    m[0][0] = v[0];
-    m[1][0] = v[1];
-    m[2][0] = v[2];
-    m[3][0] = 1;
-    return m;
-}
-
-Vec3f m2v(Matrix<float> m) {
-    return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
-}
-
 
 int main(int argc, char* argv[]) {
     std::string output_filename = "output.tga";
@@ -93,11 +79,12 @@ int main(int argc, char* argv[]) {
     int height = LARGE_IMAGE_WIDTH;  
     int depth = DEPTH; 
 
+    image.scale(width, height);
     
-
-    Matrix<float> ModelView = Matrix<float>::identity(4);
-    Matrix<float> ViewPort = viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
-    Matrix<float> Projection = Matrix<float>::identity(4);
+    Matrix ModelView = Matrix::identity();
+    Matrix ViewPort = viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
+    std::cout << ViewPort << std::endl;
+    Matrix Projection = Matrix::identity();
 
     float rotation_radius = rotation_degree / 180 * PI;
     ModelView[0][0] =  std::cos(rotation_radius);
@@ -121,10 +108,9 @@ int main(int argc, char* argv[]) {
 
     Projection[3][2] = -1 / camera.z;
 
-    Matrix<float> uniform_M = Projection * ModelView;
-    Matrix<float> uniform_MIT = uniform_M.transpose().inverse();
+    Matrix uniform_M = Projection * ModelView;
+    Matrix uniform_MIT = uniform_M.invert_transpose();
 
-    image.scale(width, height);
     model = new Model("../objs/afraican_head.obj", "../texture/african_head_diffuse.tga");
     ZBuffer zbuffer(width, height);
 
@@ -137,9 +123,13 @@ int main(int argc, char* argv[]) {
         for (int j=0; j<3; j++) { 
             Vec3f v = model->vert(face[j].vertex_idx); 
             Vec3f n = model->normal(face[j].normal_idx);
-            world_coords[j] = m2v(ViewPort * uniform_M * v2m(v));
+            Vec4f world_coord = ViewPort * uniform_M * embed<4>(v);
+            world_coord = world_coord / world_coord[3];
+            Vec4f normal = uniform_MIT * embed<4>(n);
+            normal = normal / normal[3];
+            world_coords[j] = proj<3>(world_coord);
             text_coords[j] = model->uv(face[j].texture_idx);
-            normals[j] = m2v(uniform_MIT * v2m(n));
+            normals[j] = proj<3>(normal);
         } 
         // question: normal_face direction can be various, let's just ignore that for now
         triangle(world_coords, text_coords, normals, zbuffer, image);

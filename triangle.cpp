@@ -6,7 +6,7 @@ Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
     Vec3f c1 = Vec3f(B.x - A.x, C.x - A.x, A.x - P.x);
     Vec3f c2 = Vec3f(B.y - A.y, C.y - A.y, A.y - P.y);
 
-    Vec3f u = c1 ^ c2;
+    Vec3f u = cross(c1, c2);
     if (std::abs(u.z) < EPSILON) {
         // invalid output
         return Vec3f(-1, 0, 0);
@@ -33,7 +33,7 @@ void triangle(Vec3f *pts, Vec2i *texts, Vec3f *normals, ZBuffer &zbuffer, TGAIma
         for (int x = bboxmin.x; x <= bboxmax.x; x++) {
             float z = - std::numeric_limits<float>::max();
         
-            Vec3f bary_coord = barycentric(pts[0], pts[1], pts[2], Vec3f(x, y, 0));
+            Vec3f bary_coord = barycentric(proj<2>(pts[0]), proj<2>(pts[1]), proj<2>(pts[2]), Vec2f(x, y));
             if (bary_coord.x < 0 || bary_coord.y < 0 || bary_coord.z < 0) continue;
 
             Vec3f normal(0, 0, 0);
@@ -50,8 +50,8 @@ void triangle(Vec3f *pts, Vec2i *texts, Vec3f *normals, ZBuffer &zbuffer, TGAIma
 
             float u = 0, v = 0;
             for (int i = 0; i < 3; i++) {
-                u += texts[i].u * bary_coord[i];
-                v += texts[i].v * bary_coord[i];
+                u += texts[i].x * bary_coord[i];
+                v += texts[i].y * bary_coord[i];
             }
 
             TGAColor c = model->diffuse(u, v) * intensity;

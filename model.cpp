@@ -21,18 +21,18 @@ Model::Model(const char *obj_filename, const char *texture_filename) : verts_(),
         if (!line.compare(0, 2, "v ")) {
             iss >> trash;
             Vec3f v;
-            for (int i=0;i<3;i++) iss >> v.raw[i];
+            for (int i=0;i<3;i++) iss >> v[i];
             verts_.push_back(v);
         } else if (!line.compare(0, 3, "vt ")) {
             // vt  0.532 0.923 0.000
             iss >> trash >> trash;
             Vec2f vt;
-            for (int i=0;i<2;i++) iss >> vt.raw[i];
+            for (int i=0;i<2;i++) iss >> vt[i];
             texts_.push_back(vt);
         } else if (!line.compare(0, 3, "vn ")) {
             iss >> trash >> trash;
             Vec3f vn;
-            for (int i=0;i<3;i++) iss >> vn.raw[i];
+            for (int i=0;i<3;i++) iss >> vn[i];
             normals_.push_back(vn);
         } else if (!line.compare(0, 2, "f ")) {
             std::vector<Vertex> f; 
