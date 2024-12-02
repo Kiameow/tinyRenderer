@@ -4,12 +4,15 @@
 #include "model.h"
 #include "triangle.h"
 #include "zbuffer.h"
+#include <cmath>
 #include <iostream>
 #include <string>
+#include <cstring>
 
 #define IMAGE_WIDTH 100
 #define IMAGE_HEIGHT 100
 #define DEPTH 127
+#define PI 3.1415926
 
 #define LARGE_IMAGE_WIDTH 800
 #define LARGE_IMAGE_HEIGHT 800
@@ -54,8 +57,15 @@ Vec3f m2v(Matrix<float> m) {
 int main(int argc, char* argv[]) {
     std::string output_filename = "output.tga";
     std::string images_folder = "../images/";
+
+    float rotation_degree = 0.f;
     if (argc == 2) {
         output_filename = argv[1];
+    } else if (argc == 4) {
+        if (std::string(argv[1]) == "--rotation") {
+            rotation_degree = std::stof(argv[2]);
+        }
+        output_filename = argv[3];
     }
     #ifdef LINE_TEST
     image.clear();
@@ -83,10 +93,36 @@ int main(int argc, char* argv[]) {
     int height = LARGE_IMAGE_WIDTH;  
     int depth = DEPTH; 
 
+    
+
+    Matrix<float> ModelView = Matrix<float>::identity(4);
     Matrix<float> ViewPort = viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
     Matrix<float> Projection = Matrix<float>::identity(4);
 
+    float rotation_radius = rotation_degree / 180 * PI;
+    ModelView[0][0] =  std::cos(rotation_radius);
+    ModelView[0][2] =  std::sin(rotation_radius);
+    ModelView[2][0] = -std::sin(rotation_radius);
+    ModelView[2][2] =  std::cos(rotation_radius);
+
+    // 0  0  1  0    x      z
+    // 0  1  0  0    y      y
+    //-1  0  0  0  * z  =  -x
+    // 0  0  0  1    1      1
+
+    // although I changed the vertex position via rotation, but the normal of each vertex
+    // still not changed(which is defined in obj file), in triangle rasterizing, I 
+    // firstly dot product the normal and
+    // light direction, if it's less than zero, then it will be skipped, so there might 
+    // some issue, that some vertex shouldb't be skipped, but skipped
+
+    // so the solution will be rotation also be applied to normal, which is the transpose
+    // of the ModelView Matrix
+
     Projection[3][2] = -1 / camera.z;
+
+    Matrix<float> uniform_M = Projection * ModelView;
+    Matrix<float> uniform_MIT = uniform_M.transpose().inverse();
 
     image.scale(width, height);
     model = new Model("../objs/afraican_head.obj", "../texture/african_head_diffuse.tga");
@@ -100,9 +136,10 @@ int main(int argc, char* argv[]) {
     
         for (int j=0; j<3; j++) { 
             Vec3f v = model->vert(face[j].vertex_idx); 
-            world_coords[j] = m2v(ViewPort * Projection * v2m(v));
+            Vec3f n = model->normal(face[j].normal_idx);
+            world_coords[j] = m2v(ViewPort * uniform_M * v2m(v));
             text_coords[j] = model->uv(face[j].texture_idx);
-            normals[j] = model->normal(face[j].normal_idx);
+            normals[j] = m2v(uniform_MIT * v2m(n));
         } 
         // question: normal_face direction can be various, let's just ignore that for now
         triangle(world_coords, text_coords, normals, zbuffer, image);
