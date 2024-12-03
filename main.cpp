@@ -15,7 +15,7 @@
 
 #define IMAGE_WIDTH 100
 #define IMAGE_HEIGHT 100
-#define DEPTH 127
+#define DEPTH 255
 
 #define LARGE_IMAGE_WIDTH 800
 #define LARGE_IMAGE_HEIGHT 800
