@@ -6,7 +6,7 @@
 #include "model.h"
 #include "tgaimage.h"
 
-Model::Model(const char *obj_filename, const char *texture_filename) : verts_(), texts_(), faces_() {
+Model::Model(const char *obj_filename, const char *texture_filename, const char *normal_texture_filename) : verts_(), texts_(), faces_() {
     std::ifstream in;
     in.open (obj_filename, std::ifstream::in);
     if (in.fail()) {
@@ -49,16 +49,19 @@ Model::Model(const char *obj_filename, const char *texture_filename) : verts_(),
         }
     }
     std::cerr << "# v# " << verts_.size() << " f# "  << faces_.size() << std::endl;
-    load_texture(texture_filename);
+    if (texture_filename != nullptr)
+        load_texture(texture_filename, texture_);
+    if (normal_texture_filename != nullptr) 
+        load_texture(normal_texture_filename, normal_texture_);
 }
 
 Model::~Model() {
 }
 
-void Model::load_texture(const char *filename) {
+void Model::load_texture(const char *filename, TGAImage& obj_image) {
     std::string texfile(filename);
-    std::cerr << "texture file " << texfile << " loading " << (texture_.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
-    texture_.flip_vertically();
+    std::cerr << "texture file " << texfile << " loading " << (obj_image.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
+    obj_image.flip_vertically();
 }
 
 int Model::nverts() {

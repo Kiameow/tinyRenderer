@@ -5,6 +5,7 @@
 #include "geometry.h"
 
 #define EPSILON 0.001f
+#define PI 3.1415926
 
 extern Model *model;
 extern Vec3f light_dir;

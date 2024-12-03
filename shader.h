@@ -15,6 +15,7 @@ void viewport(int x, int y, int width, int height, int depth);
 void projection(float coeff);
 void lookat(Vec3f eye, Vec3f center, Vec3f up);
 void uniform();
+void rotate(float rotate_degree);
 
 struct IShader {
     virtual ~IShader() {}
@@ -22,7 +23,7 @@ struct IShader {
     virtual bool fragment(Vec3f bary, TGAColor &color) = 0;
 };
 
-class GouraudShader : IShader {
+class GouraudShader : public IShader {
 private:
     Vec3f varying_intensity;
     mat<2, 3, float> varying_uv;
@@ -38,7 +39,7 @@ public:
     }
 };
 
-class PhongShader : IShader {
+class PhongShader : public IShader {
 private:
     mat<3, 3, float> varying_normal;
     mat<2, 3, float> varying_uv;
@@ -50,6 +51,24 @@ public:
         Vec3f normal = (varying_normal * bary);
         float intensity = std::max(0.f, normal * light_dir);
         
+        color = model->diffuse(uv.x, uv.y) * intensity;
+        //color = TGAColor(255, 255, 255, 255) * intensity;
+        return false;
+    }
+};
+
+class NormalBumpShader : public IShader {
+private:
+    mat<2, 3, float> varying_uv;
+public:
+    ~NormalBumpShader() {}
+    Vec4f vertex(int face_idx, int vert_idx) override;
+    bool fragment(Vec3f bary, TGAColor &color) override {
+        Vec2f uv = varying_uv * bary;
+        TGAColor normal_color = model->getNormal(uv.x, uv.y);
+        Vec3f normal = Vec3f(normal_color.r, normal_color.g, normal_color.b).normalize();
+        float intensity = std::max(0.f, normal * light_dir);
+         
         color = model->diffuse(uv.x, uv.y) * intensity;
         //color = TGAColor(255, 255, 255, 255) * intensity;
         return false;

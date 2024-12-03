@@ -20,9 +20,10 @@ private:
 	std::vector<Vec2f> texts_;
 	std::vector<std::vector<Vertex>> faces_;
 	TGAImage texture_;
-	void load_texture(const char *filename);
+	TGAImage normal_texture_;
+	void load_texture(const char *filename, TGAImage& obj_image);
 public:
-	Model(const char *obj_filename, const char *texture_filename);
+	Model(const char *obj_filename, const char *texture_filename, const char *normal_texture_filename=nullptr);
 	~Model();
 	int nverts();
 	int ntexts();
@@ -32,6 +33,7 @@ public:
 	Vec3f normal(int i);
 	Vec2i uv(int texture_idx);
 	inline TGAColor diffuse(int u, int v) {	return texture_.get(u, v); }
+	inline TGAColor getNormal(int u, int v) { return normal_texture_.get(u , v); }
 };
 
 #endif //__MODEL_H__

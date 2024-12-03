@@ -9,11 +9,13 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <unordered_map>
+#include <functional>
+#include <memory>
 
 #define IMAGE_WIDTH 100
 #define IMAGE_HEIGHT 100
 #define DEPTH 127
-#define PI 3.1415926
 
 #define LARGE_IMAGE_WIDTH 800
 #define LARGE_IMAGE_HEIGHT 800
@@ -31,15 +33,37 @@ TGAImage image(IMAGE_WIDTH, IMAGE_HEIGHT, TGAImage::RGB);
 int main(int argc, char* argv[]) {
     std::string output_filename = "output.tga";
     std::string images_folder = "../images/";
-
     float rotation_degree = 0.f;
-    if (argc == 2) {
-        output_filename = argv[1];
-    } else if (argc == 4) {
-        if (std::string(argv[1]) == "--rotation") {
-            rotation_degree = std::stof(argv[2]);
+    std::unique_ptr<IShader> shader = std::make_unique<GouraudShader>();
+    
+    std::unordered_map<std::string, std::function<void(int&)>> options{
+        {"-o", [&](int& i) {
+            if (i + 1 < argc) {
+                output_filename = argv[++i];
+                std::cout << "Output filename: " << output_filename << std::endl;
+            } else {
+                std::cerr << "Error: Missing value for -o option." << std::endl;
+            }
+        }},
+        {"--rotate", [&](int& i) { 
+            if (i + 1 < argc) {
+                rotation_degree = atof(argv[++i]);
+            } else {
+                std::cerr << "Error: Missing value for --rotate option." << std::endl;
+            }
+        }},
+        {"--goraud", [&](int&) { shader = std::make_unique<GouraudShader>(); }},
+        {"--phong", [&](int&) { shader = std::make_unique<PhongShader>(); }},
+        {"--bump", [&](int&) { shader = std::make_unique<NormalBumpShader>(); }},
+    };
+
+    if (argc > 1) {
+        for (int i=1; i<argc; i++) {
+            std::string arg = argv[i];
+            if (options.find(arg) != options.end()) {
+                options[arg](i);
+            }
         }
-        output_filename = argv[3];
     }
 
     #ifdef MODEL_TEST
@@ -55,24 +79,22 @@ int main(int argc, char* argv[]) {
 
     viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
     projection(eye.z);
+    rotate(rotation_degree);
     lookat(eye, center, up);
     uniform();
 
-    //GouraudShader shader;
-    PhongShader shader;
-
-    model = new Model("../objs/afraican_head.obj", "../texture/african_head_diffuse.tga");
+    model = new Model("../objs/afraican_head.obj", "../texture/african_head_diffuse.tga", "../texture/african_head_nm.tga");
     ZBuffer zbuffer(width, height);
 
     for (int i=0; i<model->nfaces(); i++) { 
         Vec4f screen_coords[3];
     
         for (int j=0; j<3; j++) { 
-            screen_coords[j] = shader.vertex(i, j);
+            screen_coords[j] = shader->vertex(i, j);
             screen_coords[j] = screen_coords[j] / screen_coords[j][3];
         } 
         
-        triangle(screen_coords, shader, zbuffer, image);
+        triangle(screen_coords, *shader, zbuffer, image);
     }
     image.flip_vertically();
     image.write_tga_file((images_folder + output_filename).c_str());
