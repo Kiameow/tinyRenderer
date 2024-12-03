@@ -4,6 +4,7 @@
 #include <vector>
 #include "geometry.h"
 #include "tgaimage.h"
+#include "string"
 
 struct Vertex {
 	int vertex_idx;
@@ -24,7 +25,7 @@ private:
 	TGAImage spec_texture_;
 	void load_texture(std::string filename, const char *suffix, TGAImage &img);
 public:
-	Model(const char *obj_filename);
+	Model(std::string obj_filename);
 	~Model();
 	int nverts();
 	int ntexts();
@@ -32,9 +33,10 @@ public:
 	Vec3f vert(int i);
 	std::vector<Vertex> face(int idx);
 	Vec3f normal(int i);
-	Vec2i uv(int texture_idx);
-	inline TGAColor diffuse(int u, int v) {	return texture_.get(u, v); }
-	inline TGAColor getNormal(int u, int v) { return normal_texture_.get(u , v); }
+	Vec2f uv(int texture_idx);
+	TGAColor diffuse(Vec2f uvf);
+	Vec3f nm(Vec2f uvf);
+	float spec(Vec2f uvf);
 };
 
 #endif //__MODEL_H__

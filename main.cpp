@@ -31,6 +31,7 @@ TGAColor white(255, 255, 255, 255);
 TGAImage image(IMAGE_WIDTH, IMAGE_HEIGHT, TGAImage::RGB);
 
 int main(int argc, char* argv[]) {
+    std::string model_name = "afraican_head";
     std::string output_filename = "output.tga";
     std::string images_folder = "../images/";
     float rotation_degree = 0.f;
@@ -43,6 +44,14 @@ int main(int argc, char* argv[]) {
                 std::cout << "Output filename: " << output_filename << std::endl;
             } else {
                 std::cerr << "Error: Missing value for -o option." << std::endl;
+            }
+        }},
+        {"-m", [&](int& i) {
+            if (i + 1 < argc) {
+                model_name = argv[++i];
+                images_folder = images_folder + model_name + "/";
+            } else {
+                std::cerr << "Error: Missing value for -m option." << std::endl;
             }
         }},
         {"--rotate", [&](int& i) { 
@@ -83,7 +92,9 @@ int main(int argc, char* argv[]) {
     lookat(eye, center, up);
     uniform();
 
-    model = new Model("../objs/afraican_head/afraican_head.obj");
+    std::string model_filename = "../objs/" + model_name + "/" + model_name + ".obj";
+    //model = new Model("../objs/afraican_head/afraican_head.obj");
+    model = new Model(model_filename);
     ZBuffer zbuffer(width, height);
 
     for (int i=0; i<model->nfaces(); i++) { 
