@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
     lookat(eye, center, up);
     uniform();
 
-    model = new Model("../objs/afraican_head.obj", "../texture/african_head_diffuse.tga", "../texture/african_head_nm.tga");
+    model = new Model("../objs/afraican_head/afraican_head.obj");
     ZBuffer zbuffer(width, height);
 
     for (int i=0; i<model->nfaces(); i++) { 
@@ -102,26 +102,6 @@ int main(int argc, char* argv[]) {
     
     return 0;
 }
-
-// float rotation_radius = rotation_degree / 180 * PI;
-    // ModelView[0][0] =  std::cos(rotation_radius);
-    // ModelView[0][2] =  std::sin(rotation_radius);
-    // ModelView[2][0] = -std::sin(rotation_radius);
-    // ModelView[2][2] =  std::cos(rotation_radius);
-
-    // 0  0  1  0    x      z
-    // 0  1  0  0    y      y
-    //-1  0  0  0  * z  =  -x
-    // 0  0  0  1    1      1
-
-    // although I changed the vertex position via rotation, but the normal of each vertex
-    // still not changed(which is defined in obj file), in triangle rasterizing, I 
-    // firstly dot product the normal and
-    // light direction, if it's less than zero, then it will be skipped, so there might 
-    // some issue, that some vertex shouldb't be skipped, but skipped
-
-    // so the solution will be rotation also be applied to normal, which is the transpose
-    // of the ModelView Matrix
 
 #ifdef LINE_TEST
 image.clear();

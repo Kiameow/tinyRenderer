@@ -21,9 +21,10 @@ private:
 	std::vector<std::vector<Vertex>> faces_;
 	TGAImage texture_;
 	TGAImage normal_texture_;
-	void load_texture(const char *filename, TGAImage& obj_image);
+	TGAImage spec_texture_;
+	void load_texture(std::string filename, const char *suffix, TGAImage &img);
 public:
-	Model(const char *obj_filename, const char *texture_filename, const char *normal_texture_filename=nullptr);
+	Model(const char *obj_filename);
 	~Model();
 	int nverts();
 	int ntexts();
