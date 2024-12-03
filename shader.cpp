@@ -74,9 +74,7 @@ Vec4f PhongShader::vertex(int face_idx, int vert_idx) {
 
     Vertex vertex = model->face(face_idx)[vert_idx];
 
-    Vec4f normal = Uniform_MIT * embed<4>(model->normal(vertex.normal_idx));
-    normal = (normal / normal[3]);
-    varying_normal.set_col(vert_idx, proj<3>(normal).normalize());
+    varying_normal.set_col(vert_idx, model->normal(vertex.normal_idx));
     varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
     return ViewPort * Projection * ModelView * embed<4>(model->vert(vertex.vertex_idx));
 }
