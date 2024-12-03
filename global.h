@@ -8,6 +8,8 @@
 
 extern Model *model;
 extern Vec3f light_dir;
-extern Vec3f camera;
+extern Vec3f eye;
+extern Vec3f center;
+extern Vec3f up;
 
 #endif

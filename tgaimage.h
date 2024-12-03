@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <stdexcept>
+#include <iostream>
 
 #pragma pack(push,1)
 struct TGA_Header {
@@ -73,6 +74,8 @@ struct TGAColor {
 		return c;
 	}
 };
+
+std::ostream& operator<<(std::ostream& out, TGAColor& color);
 
 
 class TGAImage {

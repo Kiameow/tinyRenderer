@@ -17,6 +17,7 @@ add_executable(program
     geometry.cpp
     triangle.cpp
     global.cpp
+    shader.cpp
 )
 
 # 如果需要链接外部库，可以在这里添加

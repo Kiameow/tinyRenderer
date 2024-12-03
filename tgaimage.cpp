@@ -5,6 +5,17 @@
 #include <math.h>
 #include "tgaimage.h"
 
+std::ostream& operator<<(std::ostream& out, TGAColor& color) {
+		out << "r: " << static_cast<int>(color.r) << " "
+			<< "g: " << static_cast<int>(color.g) << " "
+			<< "b: " << static_cast<int>(color.b);
+		
+		if (color.bytespp == 4) {
+        	out << " a: " << static_cast<int>(color.a);
+    	}
+    	return out;
+}
+
 TGAImage::TGAImage() : data(NULL), width(0), height(0), bytespp(0) {
 }
 
