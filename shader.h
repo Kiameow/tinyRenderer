@@ -33,7 +33,7 @@ public:
     bool fragment(Vec3f bary, TGAColor &color) override {
         Vec2f uv = varying_uv * bary;
         float intensity = varying_intensity * bary;
-        color = model->diffuse(uv.x, uv.y) * intensity;
+        color = model->diffuse(uv) * intensity;
         //color = TGAColor(255, 255, 255, 255) * intensity;
         return false;
     }
@@ -48,10 +48,19 @@ public:
     Vec4f vertex(int face_idx, int vert_idx) override;
     bool fragment(Vec3f bary, TGAColor &color) override {
         Vec2f uv = varying_uv * bary;
-        Vec3f normal = (varying_normal * bary);
-        float intensity = std::max(0.f, normal * light_dir);
-        
-        color = model->diffuse(uv.x, uv.y) * intensity;
+        Vec3f normal = proj<3>(Uniform_MIT * embed<4>(varying_normal * bary)).normalize();
+        //std::cout << "normal: " << normal << std::endl;
+        Vec3f l = proj<3>(Uniform_M * embed<4>(light_dir)).normalize();
+        Vec3f half = (Vec3f(0, 0, 1) + l).normalize();
+        //std::cout << "half: " << half << std::endl;
+        float spec = 255 * model->spec(uv) * std::pow(std::max(0.f, normal * half), 30);
+        if (spec > 100)
+        std::cout << spec << std::endl;
+        float diff = std::max(0.f, normal * l);        
+        TGAColor c = model->diffuse(uv);
+        for (int i=0; i<3; i++) {
+            color[i] = std::min<float>(5 + c[i] * diff + spec, 255);
+        }
         //color = TGAColor(255, 255, 255, 255) * intensity;
         return false;
     }
@@ -65,11 +74,11 @@ public:
     Vec4f vertex(int face_idx, int vert_idx) override;
     bool fragment(Vec3f bary, TGAColor &color) override {
         Vec2f uv = varying_uv * bary;
-        TGAColor normal_color = model->getNormal(uv.x, uv.y);
-        Vec3f normal = Vec3f(normal_color.r, normal_color.g, normal_color.b).normalize();
-        float intensity = std::max(0.f, normal * light_dir);
+        Vec3f normal = proj<3>(Uniform_MIT * embed<4>(model->nm(uv))).normalize();
+        Vec3f l = proj<3>(Uniform_M * embed<4>(light_dir)).normalize();
+        float intensity = std::max(0.f, normal * l);
          
-        color = model->diffuse(uv.x, uv.y) * intensity;
+        color = model->diffuse(uv) * intensity;
         //color = TGAColor(255, 255, 255, 255) * intensity;
         return false;
     }
