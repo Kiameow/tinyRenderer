@@ -6,7 +6,7 @@
 #include "model.h"
 #include "tgaimage.h"
 
-Model::Model(const char *obj_filename) : verts_(), texts_(), faces_() {
+Model::Model(std::string obj_filename) : verts_(), texts_(), faces_() {
     std::ifstream in;
     in.open (obj_filename, std::ifstream::in);
     if (in.fail()) {
@@ -91,7 +91,23 @@ Vec3f Model::normal(int i) {
     return normals_[i];
 }
 
-Vec2i Model::uv(int texture_idx) {
-    Vec2f vert_text = texts_[texture_idx];
-    return Vec2i(vert_text.x * texture_.get_width(), vert_text.y * texture_.get_height());
+Vec2f Model::uv(int texture_idx) {
+    return texts_[texture_idx];
+}
+
+TGAColor Model::diffuse(Vec2f uvf) {
+    Vec2i uv(uvf[0]*texture_.get_width(), uvf[1]*texture_.get_height());
+    return texture_.get(uv[0], uv[1]);
+}
+
+Vec3f Model::nm(Vec2f uvf) {
+    Vec2i uv(uvf[0]*normal_texture_.get_width(), uvf[1]*normal_texture_.get_height());
+    TGAColor c = normal_texture_.get(uv[0], uv[1]);
+    return Vec3f(c[0], c[1], c[2]).normalize();
+}
+
+float Model::spec(Vec2f uvf) {
+    Vec2i uv(uvf[0]*spec_texture_.get_width(), uvf[1]*spec_texture_.get_height());
+    TGAColor c = spec_texture_.get(uv[0], uv[1]);
+    return c[0] / 255.f;
 }
