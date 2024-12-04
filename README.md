@@ -7,3 +7,10 @@
 obj文件的顶点定义顺序是逆时针的。
 
 如果使用Phong shading, 使用的是方法是法线插值，因此在对顶点应用一系列矩阵变换时，也需要对法线进行矩阵变换的逆转置
+
+tangent mapping, shadow mapping
+
+## shadow mapping
+1.先定义一个depth shader, 将z-buffer替换成为depth-buffer, 计算得到depth-buffer(shadow-buffer)
+2.使用正常的shader,注意fragment部分需要用到像素点的具体坐标，从而索引depth-buffer得到depth值，与自己的z值进行比较，如果z值小于depth值，就说明被遮挡了，就需要在原来的phong模型上添加一个阴影项（tutor里是乘了一个系数，系数是小于1的，因此肯定会变暗）
+PS: 阴影部分应该只会在相机和光线不处于同一点且方向也不一致的情况下产生
