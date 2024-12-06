@@ -15,7 +15,6 @@
 
 #define IMAGE_WIDTH 100
 #define IMAGE_HEIGHT 100
-#define DEPTH 255
 
 #define LARGE_IMAGE_WIDTH 800
 #define LARGE_IMAGE_HEIGHT 800
@@ -28,7 +27,6 @@ TGAColor red(255, 0, 0, 255);
 TGAColor green(0, 255, 0, 255);
 TGAColor blue(0, 0, 255, 255);
 TGAColor white(255, 255, 255, 255);
-TGAImage image(IMAGE_WIDTH, IMAGE_HEIGHT, TGAImage::RGB);
 
 int main(int argc, char* argv[]) {
     std::string model_name = "afraican_head";
@@ -74,28 +72,60 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+    std::string model_filename = "../objs/" + model_name + "/" + model_name + ".obj";
 
     #ifdef MODEL_TEST
-    image.clear();
-    
-    light_dir.normalize();
     
     int width = LARGE_IMAGE_WIDTH;   
     int height = LARGE_IMAGE_WIDTH;  
-    int depth = DEPTH; 
 
-    image.scale(width, height);
+    model = new Model(model_filename);
+
+    //-------------Shadow Mapping--------------//
+    TGAImage depth_image(width, height, TGAImage::RGB);
+
+    light_dir = Vec3f(0, 0, 1).normalize();
+    eye = light_dir * 3;
+    up = Vec3f(0, 1, 0);
+    center = Vec3f(0, 0, 0);
+    
+    viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
+    projection(eye.z);
+    model_affine(Vec3f(0,0,0), 0, 1);
+    lookat(eye, center, up);
+    uniform();
+    shadow_left();
+
+    shadow_buffer = new ZBuffer(width, height);
+
+    DepthShader depthShader;
+    
+    for (int i=0; i<model->nfaces(); i++) { 
+        Vec4f screen_coords[3];
+    
+        for (int j=0; j<3; j++) { 
+            screen_coords[j] = depthShader.vertex(i, j);
+            screen_coords[j] = screen_coords[j] / screen_coords[j][3];
+        } 
+        
+        triangle(screen_coords, depthShader, *shadow_buffer, depth_image);
+    }
+    depth_image.flip_vertically();
+    depth_image.write_tga_file((images_folder + "depth-" + output_filename).c_str());
+    //-------------Shadow Mapping End--------------//
+
+    //-------------Shading---------------//
+    TGAImage image(width, height, TGAImage::RGB);
+    ZBuffer zbuffer(width, height);
+
+    eye = Vec3f(0, 0, 3);
 
     viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
     projection(eye.z);
-    rotate(rotation_degree);
+    model_affine(Vec3f(0,0,0), rotation_degree, 1);
     lookat(eye, center, up);
     uniform();
-
-    std::string model_filename = "../objs/" + model_name + "/" + model_name + ".obj";
-    //model = new Model("../objs/afraican_head/afraican_head.obj");
-    model = new Model(model_filename);
-    ZBuffer zbuffer(width, height);
+    shadow();
 
     for (int i=0; i<model->nfaces(); i++) { 
         Vec4f screen_coords[3];

@@ -1,26 +1,29 @@
 #include "shader.h"
 #include "global.h"
 
-Matrix ModelView = Matrix::identity();
-Matrix ViewPort = Matrix::identity();
-Matrix Projection = Matrix::identity();
+Matrix ModelAffine = Matrix::identity();
+Matrix ViewAffine = Matrix::identity();  // transform from local coord. to camera coord. 
+Matrix ProjectionAffine = Matrix::identity();
+Matrix ViewPortAffine = Matrix::identity();   
 Matrix Uniform_M = Matrix::identity();
 Matrix Uniform_MIT = Matrix::identity();
+Matrix ShadowAffineL = Matrix::identity();
+Matrix ShadowAffine = Matrix::identity();
 
 void viewport(int x, int y, int width, int height, int depth) {
-    ViewPort[0][0] = width  / 2.f;
-    ViewPort[1][1] = height / 2.f;
-    ViewPort[2][2] = depth  / 2.f;
+    ViewPortAffine[0][0] = width  / 2.f;
+    ViewPortAffine[1][1] = height / 2.f;
+    ViewPortAffine[2][2] = depth  / 2.f;
     
-    ViewPort[0][3] = x + width  / 2.f;
-    ViewPort[1][3] = y + height / 2.f;
-    ViewPort[2][3] = depth      / 2.f;
-    //std::cout << ViewPort << std::endl;
+    ViewPortAffine[0][3] = x + width  / 2.f;
+    ViewPortAffine[1][3] = y + height / 2.f;
+    ViewPortAffine[2][3] = depth      / 2.f;
 }
 
 void projection(float coeff=0.f) {
     if (std::abs(coeff) < EPSILON) return;
-    Projection[3][2] = -1 / coeff;
+    ProjectionAffine = Matrix::identity();
+    ProjectionAffine[3][2] = -1 / coeff;
 }
 
 void lookat(Vec3f eye, Vec3f center, Vec3f up) {
@@ -29,7 +32,6 @@ void lookat(Vec3f eye, Vec3f center, Vec3f up) {
     Vec3f x = cross(up, z).normalize();
     Vec3f y = cross(z, x).normalize();
 
-    // not understand
     Matrix Minv = Matrix::identity();
     Matrix Tr   = Matrix::identity();
     for (int i=0; i<3; i++) {
@@ -38,23 +40,40 @@ void lookat(Vec3f eye, Vec3f center, Vec3f up) {
         Minv[2][i] = z[i];
         Tr[i][3] = -eye[i];
     }
-    ModelView = Minv*Tr;
+    ViewAffine = Minv*Tr;
 }
 
 void uniform() {
-    Uniform_M = Projection * ModelView;
+    Uniform_M = ProjectionAffine * ViewAffine * ModelAffine;
     Uniform_MIT = Uniform_M.invert_transpose();
 }
 
-void rotate(float rotation_degree) {
-    Matrix M = Matrix::identity();
+// now it can only rotate by y-axis
+void model_affine(Vec3f rel_dest_pos, float rotation_deg, float scale) {
+    Matrix R = Matrix::identity();
+    Matrix TS = Matrix::identity();
     
-    float rotation_radius = rotation_degree / 180 * PI;
-    M[0][0] =  std::cos(rotation_radius);
-    M[0][2] =  std::sin(rotation_radius);
-    M[2][0] = -std::sin(rotation_radius);
-    M[2][2] =  std::cos(rotation_radius);
-    ModelView = M * ModelView;
+    float rotation_radius = rotation_deg / 180 * PI;
+    R[0][0] =  std::cos(rotation_radius);
+    R[0][2] =  std::sin(rotation_radius); 
+    R[2][0] = -std::sin(rotation_radius);
+    R[2][2] =  std::cos(rotation_radius);
+
+    TS[0][0] = scale;
+    TS[1][1] = scale;
+    TS[2][2] = scale;
+    TS[0][3] = rel_dest_pos.x;
+    TS[1][3] = rel_dest_pos.y;
+    TS[2][3] = rel_dest_pos.z;
+
+    ModelAffine = TS * R * ModelAffine;
+}
+
+void shadow_left() {
+    ShadowAffineL = ViewPortAffine * Uniform_M;
+}
+void shadow() {
+    ShadowAffine = ShadowAffineL * Uniform_MIT * ViewPortAffine.invert();
 }
 
 Vec4f GouraudShader::vertex(int face_idx, int vert_idx) {
@@ -65,7 +84,7 @@ Vec4f GouraudShader::vertex(int face_idx, int vert_idx) {
 
     varying_intensity[vert_idx] = std::max(0.f, model->normal(vertex.normal_idx) * light_dir);
     varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
-    return ViewPort * Projection * ModelView * embed<4>(model->vert(vertex.vertex_idx));
+    return ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
 }
 
 Vec4f PhongShader::vertex(int face_idx, int vert_idx) {
@@ -76,7 +95,9 @@ Vec4f PhongShader::vertex(int face_idx, int vert_idx) {
 
     varying_normal.set_col(vert_idx, model->normal(vertex.normal_idx));
     varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
-    return ViewPort * Projection * ModelView * embed<4>(model->vert(vertex.vertex_idx));
+    Vec4f gl_vert = ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
+    varying_vert.set_col(vert_idx, proj<3>(gl_vert / gl_vert[3]));
+    return gl_vert;
 }
 
 Vec4f NormalBumpShader::vertex(int face_idx, int vert_idx) {
@@ -85,5 +106,15 @@ Vec4f NormalBumpShader::vertex(int face_idx, int vert_idx) {
 
     Vertex vertex = model->face(face_idx)[vert_idx];
     varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
-    return ViewPort * Projection * ModelView * embed<4>(model->vert(vertex.vertex_idx));
+    return ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
+}
+
+Vec4f DepthShader::vertex(int face_idx, int vert_idx) {
+    if (face_idx >= model->nfaces() || face_idx < 0) throw "face index exceeds the boundary";
+    if (vert_idx >= 3 || vert_idx < 0) throw "vertex index must be less than 3 and greater than or equal to 0";
+
+    Vertex vertex = model->face(face_idx)[vert_idx];
+    Vec4f gl_vert = ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
+    varying_vert.set_col(vert_idx, proj<3>(gl_vert / gl_vert[3]));
+    return gl_vert;
 }

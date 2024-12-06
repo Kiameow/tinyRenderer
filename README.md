@@ -8,6 +8,8 @@ obj文件的顶点定义顺序是逆时针的。
 
 如果使用Phong shading, 使用的是方法是法线插值，因此在对顶点应用一系列矩阵变换时，也需要对法线进行矩阵变换的逆转置
 
+对于Phong shading,法线应该是先插值再做逆变换，还是先逆变换再插值？
+
 tangent mapping, shadow mapping
 
 ## shadow mapping
