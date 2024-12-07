@@ -11,6 +11,7 @@ Matrix ShadowAffineL = Matrix::identity();
 Matrix ShadowAffine = Matrix::identity();
 
 void viewport(int x, int y, int width, int height, int depth) {
+    ViewPortAffine = Matrix::identity();
     ViewPortAffine[0][0] = width  / 2.f;
     ViewPortAffine[1][1] = height / 2.f;
     ViewPortAffine[2][2] = depth  / 2.f;
@@ -21,13 +22,11 @@ void viewport(int x, int y, int width, int height, int depth) {
 }
 
 void projection(float coeff=0.f) {
-    if (std::abs(coeff) < EPSILON) return;
     ProjectionAffine = Matrix::identity();
-    ProjectionAffine[3][2] = -1 / coeff;
+    ProjectionAffine[3][2] = coeff;
 }
 
 void lookat(Vec3f eye, Vec3f center, Vec3f up) {
-    return ;
     Vec3f z = (eye - center).normalize();
     Vec3f x = cross(up, z).normalize();
     Vec3f y = cross(z, x).normalize();
@@ -38,7 +37,7 @@ void lookat(Vec3f eye, Vec3f center, Vec3f up) {
         Minv[0][i] = x[i];
         Minv[1][i] = y[i];
         Minv[2][i] = z[i];
-        Tr[i][3] = -eye[i];
+        Tr[i][3] = -center[i];
     }
     ViewAffine = Minv*Tr;
 }
@@ -74,47 +73,4 @@ void shadow_left() {
 }
 void shadow() {
     ShadowAffine = ShadowAffineL * Uniform_MIT * ViewPortAffine.invert();
-}
-
-Vec4f GouraudShader::vertex(int face_idx, int vert_idx) {
-    if (face_idx >= model->nfaces() || face_idx < 0) throw "face index exceeds the boundary";
-    if (vert_idx >= 3 || vert_idx < 0) throw "vertex index must be less than 3 and greater than or equal to 0";
-
-    Vertex vertex = model->face(face_idx)[vert_idx];
-
-    varying_intensity[vert_idx] = std::max(0.f, model->normal(vertex.normal_idx) * light_dir);
-    varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
-    return ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
-}
-
-Vec4f PhongShader::vertex(int face_idx, int vert_idx) {
-    if (face_idx >= model->nfaces() || face_idx < 0) throw "face index exceeds the boundary";
-    if (vert_idx >= 3 || vert_idx < 0) throw "vertex index must be less than 3 and greater than or equal to 0";
-
-    Vertex vertex = model->face(face_idx)[vert_idx];
-
-    varying_normal.set_col(vert_idx, model->normal(vertex.normal_idx));
-    varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
-    Vec4f gl_vert = ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
-    varying_vert.set_col(vert_idx, proj<3>(gl_vert / gl_vert[3]));
-    return gl_vert;
-}
-
-Vec4f NormalBumpShader::vertex(int face_idx, int vert_idx) {
-    if (face_idx >= model->nfaces() || face_idx < 0) throw "face index exceeds the boundary";
-    if (vert_idx >= 3 || vert_idx < 0) throw "vertex index must be less than 3 and greater than or equal to 0";
-
-    Vertex vertex = model->face(face_idx)[vert_idx];
-    varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
-    return ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
-}
-
-Vec4f DepthShader::vertex(int face_idx, int vert_idx) {
-    if (face_idx >= model->nfaces() || face_idx < 0) throw "face index exceeds the boundary";
-    if (vert_idx >= 3 || vert_idx < 0) throw "vertex index must be less than 3 and greater than or equal to 0";
-
-    Vertex vertex = model->face(face_idx)[vert_idx];
-    Vec4f gl_vert = ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
-    varying_vert.set_col(vert_idx, proj<3>(gl_vert / gl_vert[3]));
-    return gl_vert;
 }

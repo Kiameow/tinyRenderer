@@ -34,7 +34,12 @@ private:
     mat<2, 3, float> varying_uv;
 public:
     ~GouraudShader() {}
-    Vec4f vertex(int face_idx, int vert_idx) override;
+    Vec4f vertex(int face_idx, int vert_idx) override {
+        Vertex vertex = model->face(face_idx)[vert_idx];
+        varying_intensity[vert_idx] = std::max(0.f, model->normal(vertex.normal_idx) * light_dir);
+        varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
+        return ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
+    }
     bool fragment(Vec3f bary, TGAColor &color) override {
         Vec2f uv = varying_uv * bary;
         float intensity = varying_intensity * bary;
@@ -46,45 +51,37 @@ public:
 
 class PhongShader : public IShader {
 private:
-    mat<3, 3, float> varying_normal;
     mat<2, 3, float> varying_uv;
     mat<3, 3, float> varying_vert;
 public:
     ~PhongShader() {}
-    Vec4f vertex(int face_idx, int vert_idx) override;
+    Vec4f vertex(int face_idx, int vert_idx) override {
+        Vertex vertex = model->face(face_idx)[vert_idx];
+        varying_uv.set_col(vert_idx, model->uv(vertex.texture_idx));
+        Vec4f gl_vert = ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
+        varying_vert.set_col(vert_idx, proj<3>(gl_vert / gl_vert[3]));
+        return gl_vert;
+    }
     bool fragment(Vec3f bary, TGAColor &color) override {
         Vec2f uv = varying_uv * bary;
-        Vec3f normal = proj<3>(Uniform_MIT * embed<4>(varying_normal * bary)).normalize();
-        
-        Vec3f l = proj<3>(Uniform_M * embed<4>(light_dir)).normalize();
-        Vec3f half = (Vec3f(0, 0, 1) + l).normalize();
-        
-        float spec = 255 * model->spec(uv) * std::pow(std::max(0.f, normal * half), 30);
-        if (spec > 100)
-        std::cout << spec << std::endl;
-        float diff = std::max(0.f, normal * l);        
+        // Vec4f shadow_vert = ShadowAffine * embed<4>(varying_vert * bary);
+        // shadow_vert = shadow_vert / shadow_vert[3];
+        // float front_z = shadow_buffer->get(shadow_vert[0], shadow_vert[1]);
+        // float shadow_coef = 1.f;
+        // if (shadow_vert[2] < front_z) {
+        //     shadow_coef = std::min((front_z - shadow_vert[2]) / depth, 1.f);
+        // }
+        Vec3f n = proj<3>(Uniform_MIT * embed<4>(model->nm(uv))).normalize();
+        Vec3f l = proj<3>(Uniform_M   * embed<4>(light_dir)).normalize();
+        // std::cout << n << std::endl;
+        // std::cout << l << std::endl;
+        Vec3f r = (n*(n*l*2.f) - l).normalize();   // reflected light
+        float spec = pow(std::max(r.z, 0.0f), model->spec(uv));
+        float diff = std::max(0.f, n * l);        
         TGAColor c = model->diffuse(uv);
         for (int i=0; i<3; i++) {
-            color[i] = std::min<float>(5 + c[i] * diff + spec, 255);
+            color[i] = std::min<float>(5 + c[i] * (diff + .6 * spec), 255);
         }
-        //color = TGAColor(255, 255, 255, 255) * intensity;
-        return false;
-    }
-};
-
-class NormalBumpShader : public IShader {
-private:
-    mat<2, 3, float> varying_uv;
-public:
-    ~NormalBumpShader() {}
-    Vec4f vertex(int face_idx, int vert_idx) override;
-    bool fragment(Vec3f bary, TGAColor &color) override {
-        Vec2f uv = varying_uv * bary;
-        Vec3f normal = proj<3>(Uniform_MIT * embed<4>(model->nm(uv))).normalize();
-        Vec3f l = proj<3>(Uniform_M * embed<4>(light_dir)).normalize();
-        float intensity = std::max(0.f, normal * l);
-         
-        color = model->diffuse(uv) * intensity;
         //color = TGAColor(255, 255, 255, 255) * intensity;
         return false;
     }
@@ -95,9 +92,15 @@ private:
     mat<3, 3, float> varying_vert;
 public:
     ~DepthShader() {}
-    Vec4f vertex(int face_idx, int vert_idx) override;
+    Vec4f vertex(int face_idx, int vert_idx) override {
+        Vertex vertex = model->face(face_idx)[vert_idx];
+        Vec4f gl_vert = ViewPortAffine * Uniform_M * embed<4>(model->vert(vertex.vertex_idx));
+        varying_vert.set_col(vert_idx, proj<3>(gl_vert / gl_vert[3]));
+        return gl_vert;
+    }
     bool fragment(Vec3f bary, TGAColor &color) override {
         Vec3f vert = varying_vert * bary;
+        if (vert.z < 0) std::cout << vert.z << std::endl;
         color = TGAColor(255, 255, 255, 255) * (vert.z / 255);
         return false;
     }
