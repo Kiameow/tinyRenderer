@@ -68,9 +68,6 @@ void model_affine(Vec3f rel_dest_pos, float rotation_deg, float scale) {
     ModelAffine = TS * R * ModelAffine;
 }
 
-void shadow_left() {
-    ShadowAffineL = ViewPortAffine * Uniform_M;
-}
 void shadow() {
-    ShadowAffine = ShadowAffineL * Uniform_MIT * ViewPortAffine.invert();
+    ShadowAffine = ViewPortAffine * ProjectionAffine * ViewAffine * ModelAffine;
 }

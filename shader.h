@@ -19,7 +19,6 @@ void projection(float coeff);
 void lookat(Vec3f eye, Vec3f center, Vec3f up);
 void uniform();
 void model_affine(Vec3f rel_dest_pos, float rotation_deg, float scale);
-void shadow_left();
 void shadow();
 
 struct IShader {
@@ -63,24 +62,19 @@ public:
         return gl_vert;
     }
     bool fragment(Vec3f bary, TGAColor &color) override {
+        Matrix Uniform_Mshadow = ShadowAffine * (ViewPortAffine * Uniform_M).invert();
         Vec2f uv = varying_uv * bary;
-        // Vec4f shadow_vert = ShadowAffine * embed<4>(varying_vert * bary);
-        // shadow_vert = shadow_vert / shadow_vert[3];
-        // float front_z = shadow_buffer->get(shadow_vert[0], shadow_vert[1]);
-        // float shadow_coef = 1.f;
-        // if (shadow_vert[2] < front_z) {
-        //     shadow_coef = std::min((front_z - shadow_vert[2]) / depth, 1.f);
-        // }
+        Vec4f shadow_vert = Uniform_Mshadow * embed<4>(varying_vert * bary);
+        shadow_vert = shadow_vert / shadow_vert[3];
+        float shadow = .3 + .7 * (shadow_buffer->get(shadow_vert[0], shadow_vert[1]) < shadow_vert[2] + 2);
         Vec3f n = proj<3>(Uniform_MIT * embed<4>(model->nm(uv))).normalize();
         Vec3f l = proj<3>(Uniform_M   * embed<4>(light_dir)).normalize();
-        // std::cout << n << std::endl;
-        // std::cout << l << std::endl;
         Vec3f r = (n*(n*l*2.f) - l).normalize();   // reflected light
         float spec = pow(std::max(r.z, 0.0f), model->spec(uv));
         float diff = std::max(0.f, n * l);        
         TGAColor c = model->diffuse(uv);
         for (int i=0; i<3; i++) {
-            color[i] = std::min<float>(5 + c[i] * (diff + .6 * spec), 255);
+            color[i] = std::min<float>(5 + c[i] * shadow * (diff + .6 * spec), 255);
         }
         //color = TGAColor(255, 255, 255, 255) * intensity;
         return false;

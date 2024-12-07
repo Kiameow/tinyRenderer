@@ -62,7 +62,7 @@ struct TGAColor {
 
 	TGAColor operator *(float intensity) {
 		if (intensity < 0) 
-			throw std::underflow_error("TGAColor cannot be negative");
+			throw std::underflow_error("TGAColor cannot be negative: " + std::to_string(intensity));
 
 		TGAColor c(
 			std::min(static_cast<int>(this->r * intensity), 255), 

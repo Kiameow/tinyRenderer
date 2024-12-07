@@ -13,11 +13,11 @@
 #include <functional>
 #include <memory>
 
-#define IMAGE_WIDTH 100
-#define IMAGE_HEIGHT 100
+#define IMAGE_WIDTH 800
+#define IMAGE_HEIGHT 800
 
-#define LARGE_IMAGE_WIDTH 800
-#define LARGE_IMAGE_HEIGHT 800
+#define LARGE_IMAGE_WIDTH 1600
+#define LARGE_IMAGE_HEIGHT 1600
 
 #define LINE_TES
 #define TRIANGLE_TES
@@ -61,7 +61,6 @@ int main(int argc, char* argv[]) {
         }},
         {"--goraud", [&](int&) { shader = std::make_unique<GouraudShader>(); }},
         {"--phong", [&](int&) { shader = std::make_unique<PhongShader>(); }},
-        {"--bump", [&](int&) { shader = std::make_unique<NormalBumpShader>(); }},
     };
 
     if (argc > 1) {
@@ -84,17 +83,17 @@ int main(int argc, char* argv[]) {
     //-------------Shadow Mapping--------------//
     TGAImage depth_image(width, height, TGAImage::RGB);
 
-    light_dir = Vec3f(0, 0, 1).normalize();
+    light_dir = Vec3f(1, 1, 1).normalize();
     eye = light_dir * 3;
     up = Vec3f(0, 1, 0);
     center = Vec3f(0, 0, 0);
     
     viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
-    projection(eye.z);
+    projection(-1 / (eye - center).norm());
     model_affine(Vec3f(0,0,0), 0, 1);
     lookat(eye, center, up);
     uniform();
-    shadow_left();
+    shadow();
 
     shadow_buffer = new ZBuffer(width, height);
 
@@ -111,21 +110,27 @@ int main(int argc, char* argv[]) {
         triangle(screen_coords, depthShader, *shadow_buffer, depth_image);
     }
     depth_image.flip_vertically();
-    depth_image.write_tga_file((images_folder + "depth-" + output_filename).c_str());
+    depth_image.write_tga_file((images_folder + "depth.tga").c_str());
     //-------------Shadow Mapping End--------------//
 
     //-------------Shading---------------//
     TGAImage image(width, height, TGAImage::RGB);
     ZBuffer zbuffer(width, height);
 
-    eye = Vec3f(0, 0, 3);
+    eye = Vec3f(1, 1, 2);
+    std::cout << Uniform_M << std::endl;
 
     viewport(width/8, height/8, width * 3/4, height * 3/4, depth);
-    projection(eye.z);
+    projection(-1 / (eye - center).norm());
     model_affine(Vec3f(0,0,0), rotation_degree, 1);
     lookat(eye, center, up);
     uniform();
-    shadow();
+
+    // std::cout << ProjectionAffine << std::endl;
+    // std::cout << "ViewAffine" << std::endl;
+    // std::cout << ViewAffine << std::endl;
+    // std::cout << Uniform_M << std::endl;
+
 
     for (int i=0; i<model->nfaces(); i++) { 
         Vec4f screen_coords[3];

@@ -103,11 +103,14 @@ TGAColor Model::diffuse(Vec2f uvf) {
 Vec3f Model::nm(Vec2f uvf) {
     Vec2i uv(uvf[0]*normal_texture_.get_width(), uvf[1]*normal_texture_.get_height());
     TGAColor c = normal_texture_.get(uv[0], uv[1]);
-    return Vec3f(c[0], c[1], c[2]).normalize();
+    Vec3f res;
+    for (int i=0; i<3; i++)
+        res[i] = (float)c[i]/255.f*2.f - 1.f;
+    return res;
 }
 
 float Model::spec(Vec2f uvf) {
     Vec2i uv(uvf[0]*spec_texture_.get_width(), uvf[1]*spec_texture_.get_height());
     TGAColor c = spec_texture_.get(uv[0], uv[1]);
-    return c[0] / 255.f;
+    return c[0] / 1.f;
 }
